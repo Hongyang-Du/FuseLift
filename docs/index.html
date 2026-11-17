@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rethinking the Reconstruction–Generation Gap in Representation Autoencoders</title>
+<meta name="description" content="Fusing shallow encoder layers sharpens reconstruction but hurts diffusion. The cause is geometry at the encoder-decoder interface, not information. FuseReg and FuseLift fix it, reaching 0.984 gFID on ImageNet-256 in 80 epochs.">
+<meta property="og:title" content="Rethinking the Reconstruction–Generation Gap in Representation Autoencoders">
+<meta property="og:description" content="Take information from the encoder, and geometry from the decoder. 0.984 gFID on ImageNet-256 in 80 epochs.">
+<meta property="og:image" content="https://hongyang-du.github.io/FuseLift/assets/teaser.png">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="topbar" aria-label="Sections">
+  <a class="brand" href="#top">Rethinking the Reconstruction–Generation Gap in Representation Autoencoders</a>
+  <div class="links">
+    <a href="#puzzle">Puzzle</a>
+    <a href="#geometry">Geometry</a>
+    <a href="#fusereg">FuseReg</a>
+    <a href="#fuselift">FuseLift</a>
+    <a href="#results">Results</a>
+    <a href="#reproduce">Reproduce</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="col">
+    <h1>Rethinking the Reconstruction–Generation Gap in Representation Autoencoders</h1>
+    <p class="lede">Take <em>information</em> from the encoder, and <em>geometry</em> from the decoder.</p>
+
+    <p class="authors">
+      Hongyang Du<sup>1,2,*</sup>, Yunfei Xie<sup>3,*</sup>, Junjie Ye<sup>1,*</sup>, Jiawei Yang<sup>1</sup>, Xiaoyan Cong<sup>2</sup>, Haodong Zhang<sup>2</sup>, Yongchao Huang<sup>4</sup>, Haiyu Wu<sup>5</sup>, Zongxia Li<sup>6</sup>, Shihang Gui<sup>2</sup>, Dawei Liu<sup>7</sup>, Runhao Li<sup>1</sup>, Jingcheng Ni<sup>2</sup>, Chen Wei<sup>3,†</sup>, Randall Balestriero<sup>2,†</sup>, Yue Wang<sup>1,†</sup>
+    </p>
+    <p class="affils">
+      <sup>1</sup>USC PSI Lab · <sup>2</sup>Brown University · <sup>3</sup>Rice University · <sup>4</sup>University of Aberdeen · <sup>5</sup>University of Notre Dame · <sup>6</sup>University of Maryland, College Park · <sup>7</sup>University of Pennsylvania
+    </p>
+    <p class="affils notes"><sup>*</sup>Equal contribution · <sup>†</sup>Equal advising</p>
+
+    <div class="cta">
+      <a class="btn primary" href="https://arxiv.org/abs/2609.31620">Paper</a>
+      <a class="btn" href="https://github.com/Hongyang-Du/FuseLift">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        Code
+      </a>
+      <a class="btn" href="https://huggingface.co/Hongyang-Du/FuseLift">🤗 Models and samples</a>
+      <a class="btn" href="#reproduce">Reproduce 0.984 gFID</a>
+    </div>
+  </div>
+
+  <div class="marquee" aria-hidden="true">
+    <div class="strip" style="--row:0"></div>
+    <div class="strip rev" style="--row:3"></div>
+  </div>
+  <p class="col marquee-note">Class-conditional ImageNet-256 samples from FuseLift: 0.984 gFID after 80 epochs, with 50 sampling steps.</p>
+</header>
+
+<main>
+
+<!-- ───────────────────────── 1. Puzzle ───────────────────────── -->
+<section id="puzzle">
+  <div class="col">
+    <h2>More layers: sharper pixels, worse samples</h2>
+    <p>A Representation Autoencoder builds its latent space on a frozen vision encoder such as DINOv3 and trains only a pixel decoder on top. Deep encoder layers carry semantics, shallow layers carry fine spatial detail, so averaging more layers into the latent gives the decoder more to work with.</p>
+    <p>Reconstruction gets much sharper. Generation gets worse.</p>
+  </div>
+
+  <figure class="viz" id="viz-puzzle">
+    <div class="seg" role="group" aria-label="Number of fused encoder layers">
+      <button data-k="7" aria-pressed="true">Fuse 7 layers</button>
+      <button data-k="23" aria-pressed="false">Fuse all 23 layers</button>
+    </div>
+    <div class="layerstrip" aria-hidden="true"></div>
+    <div class="striplabels" aria-hidden="true"><span>shallow · detail</span><span>deep · semantics</span></div>
+    <div class="tiles">
+      <div class="tile">
+        <div class="tile-label">Reconstruction PSNR</div>
+        <div class="tile-value"><span data-stat="psnr">22.58</span> <small>dB</small></div>
+        <div class="tile-note good" data-note="psnr">higher is better</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Generation FID, no guidance</div>
+        <div class="tile-value"><span data-stat="ung">1.65</span></div>
+        <div class="tile-note" data-note="ung">lower is better</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Generation FID, guided</div>
+        <div class="tile-value"><span data-stat="gui">1.08</span></div>
+        <div class="tile-note" data-note="gui">lower is better</div>
+      </div>
+    </div>
+  </figure>
+
+  <div class="col">
+    <p>The usual reading is that this trade-off is about <em>information</em>: a latent full of detail is simply harder for a diffusion model to fit, so you tune the number of layers and give up fidelity for sample quality.</p>
+    <p>We hold the information fixed and show that most of the penalty comes from somewhere else: the <em>geometry</em> of the interface between a frozen encoder and its decoder.</p>
+  </div>
+</section>
+
+<!-- ───────────────────────── 2. Geometry ───────────────────────── -->
+<section id="geometry">
+  <div class="col">
+    <h2>Same information, different geometry</h2>
+    <p>A latent’s information is what it encodes about the image. Its geometry is how an error in the latent turns into an error in pixels.</p>
+    <p>A diffusion model treats every latent direction alike: the same noise, the same squared-error weight. The decoder does not. Along some directions a small error ruins the image; along others it hardly shows. Nothing ties the two together, because the encoder was frozen before any pixel decoder existed.</p>
+  </div>
+
+  <figure class="viz" id="viz-interface">
+    <div class="seg" role="group" aria-label="Intervention">
+      <button data-mode="baseline" aria-pressed="true">Baseline</button>
+      <button data-mode="fusereg" aria-pressed="false">FuseReg</button>
+      <button data-mode="fuselift" aria-pressed="false">FuseLift</button>
+    </div>
+    <p class="viz-status" data-status>The error leaks out of what the decoder tolerates.</p>
+    <div class="interface-grid">
+      <canvas aria-label="Diagram: a cloud of sampled latents around a clean latent, drawn over the elliptical region of errors the decoder tolerates. Samples outside the region become visible errors."></canvas>
+      <div class="decoded">
+        <figure>
+          <img src="assets/macaw_recon.jpg" alt="Sharp reconstruction of a macaw" width="256" height="256">
+          <figcaption>Reconstruction</figcaption>
+        </figure>
+        <figure>
+          <div class="stack">
+            <img data-gen="baseline" class="on" src="assets/macaw_corrupted.jpg" alt="Corrupted generated macaw" width="256" height="256">
+            <img data-gen="fusereg" src="assets/macaw_fusereg.jpg" alt="Clean generated macaw with FuseReg" width="256" height="256">
+            <img data-gen="fuselift" src="assets/macaw_fuselift.jpg" alt="Clean generated macaw with FuseLift" width="256" height="256">
+          </div>
+          <figcaption>Generation</figcaption>
+        </figure>
+      </div>
+    </div>
+    <ul class="legend-row">
+      <li><svg viewBox="0 0 34 20"><ellipse cx="17" cy="10" rx="15" ry="7.5" class="k-tol"/></svg>decoder tolerance</li>
+      <li><svg viewBox="0 0 34 20"><circle cx="17" cy="10" r="8.5" class="k-err"/><circle cx="14" cy="8" r="1.8" class="k-dot"/><circle cx="20" cy="12" r="1.8" class="k-dot"/></svg>DiT samples</li>
+      <li><svg viewBox="0 0 34 20"><path d="M11 4l12 12M23 4L11 16" class="k-x"/></svg>visible error</li>
+      <li><svg viewBox="0 0 34 20"><path d="M3 10h22M20 5l7 5-7 5" class="k-sens"/></svg>sensitive direction</li>
+      <li><svg viewBox="0 0 34 20"><path d="M3 10h22M20 5l7 5-7 5" class="k-insens"/></svg>insensitive direction</li>
+    </ul>
+  </figure>
+
+  <div class="col">
+    <p>To first order, the pixel error of a sampled latent is the decoder’s sensitivity times the generator’s error, summed over latent directions:</p>
+    <p class="eq"><span class="eq-lhs">pixel error</span> ≈ tr(<span class="t-dec"><i>G</i><sub>D</sub></span> <span class="t-gen"><i>C</i><sub>G</sub></span>)</p>
+    <p>With the latent’s content untouched, there are exactly two ways to shrink it:</p>
+    <ul class="levers">
+      <li><strong>FuseReg</strong> trains the decoder to be less sensitive where errors land.</li>
+      <li><strong>FuseLift</strong> freezes the decoder and moves the diffusion model, so that its errors are small where the decoder is sensitive.</li>
+    </ul>
+
+  </div>
+</section>
+
+<!-- ───────────────────────── 3. FuseReg ───────────────────────── -->
+<section id="fusereg">
+  <div class="col">
+    <h2>FuseReg: widen what the decoder tolerates</h2>
+    <p>A standard full-fusion decoder only ever sees one input per image: the exact average of all 23 layers. The ways individual layers deviate from that average cancel out inside it, so training never tells the decoder how to behave along them. It ends up brittle: drop a single shallow layer and reconstruction loses up to 3 dB.</p>
+    <p>FuseReg trains the decoder on the average of a <em>random subset</em> of layers, and asks for the same image every time. The subset averages stay centered on the full average, so at test time nothing changes: same encoder, same latent, same diffusion target. Only the decoder’s tolerance has grown.</p>
+  </div>
+
+  <figure class="viz" id="viz-fusereg">
+    <p class="viz-status" data-status>Training: average a random subset of layers.</p>
+    <canvas aria-label="Animation: random subsets of the 23 encoder layers are averaged into training views that scatter around the clean latent, and the decoder's tolerance region widens to cover them."></canvas>
+  </figure>
+
+  <div class="col">
+    <p>The cleanest test of tolerance: train one DiT-XL on full-fusion latents, keep its 50,000 sampled latents fixed, and swap only the decoder that renders them. Without guidance, the same latents score 2.21 gFID instead of 3.01. The samples already contained sharper structure than the standard decoder could render.</p>
+    <p>With guidance the gain fades as training converges, and both decoders land on 1.25. Guidance pulls samples close to clean latents, where the errors that remain are spread across all 1,024 channels. Layer subsets can only widen tolerance along the 22 directions in which layers disagree. The rest needs a different tool.</p>
+  </div>
+</section>
+
+<!-- ───────────────────────── 4. FuseLift ───────────────────────── -->
+<section id="fuselift">
+  <div class="col">
+    <h2>FuseLift: diffuse where the decoder measures</h2>
+    <p>Leave the decoder frozen, and move the diffusion model instead. The decoder’s first operation is a linear projection of the latent. FuseLift trains the DiT on the output of that projection, <i>h</i><sub>0</sub>, instead of on the encoder latent <i>z</i>.</p>
+  </div>
+
+  <figure class="viz" id="viz-lift">
+    <div class="seg" role="group" aria-label="Diffusion target">
+      <button data-mode="z" aria-pressed="true">Standard: diffuse on z</button>
+      <button data-mode="h0" aria-pressed="false">FuseLift: diffuse on h₀</button>
+    </div>
+
+    <div class="pipe" aria-label="Pipeline: image, frozen encoder, latent z, frozen linear projection, h0, frozen decoder blocks, image">
+      <div class="node io"><img src="assets/macaw_recon.jpg" alt="" width="52" height="52"></div>
+      <div class="arrow"></div>
+      <div class="node frozen">Encoder</div>
+      <div class="arrow"></div>
+      <div class="node tap" data-tap="z"><span><i>z</i></span></div>
+      <div class="arrow"></div>
+      <div class="node frozen">Linear</div>
+      <div class="arrow"></div>
+      <div class="node tap" data-tap="h0"><span><i>h</i><sub>0</sub></span></div>
+      <div class="arrow"></div>
+      <div class="node frozen">Decoder blocks</div>
+      <div class="arrow"></div>
+      <div class="node io"><img src="assets/macaw_fuselift.jpg" alt="" width="52" height="52"></div>
+      <div class="dit-badge" aria-hidden="true">DiT</div>
+    </div>
+    <p class="viz-status" data-status>In encoder space, every direction gets the same noise and the same weight.</p>
+
+    <canvas aria-label="Three panels. Add noise: in z both directions sit inside the noise; in h0 the decoder-sensitive direction is stretched above it. DiT effort: equal in z, proportional to squared gain in h0. DiT error: a circle that leaks out of the decoder tolerance in z, reshaped to fit inside it in h0."></canvas>
+  </figure>
+
+  <div class="col">
+    <p>Because <i>h</i><sub>0</sub> is an invertible affine map of <i>z</i>, nothing about the tokenizer changes. Every clean image reconstructs exactly as before, the decoder weights are untouched, and the DiT keeps its architecture, loss, noise schedule and guidance recipe.</p>
+    <p>What changes is the ruler. The projection stretches the directions the decoder reads most strongly. Unit noise is now small next to them, and a squared error there costs more. Both effects scale with the squared gain of the projection, so the DiT spends its capacity where pixels are at stake.</p>
+    <p>One step is the right depth. Diffusing further in, after the first or the eighth decoder block, keeps reconstruction identical but generates worse, because nonlinear blocks trade the encoder’s linear semantics for pixel synthesis. One affine step keeps the encoder’s semantics and takes a first-order version of the decoder’s pixel metric.</p>
+  </div>
+</section>
+
+<!-- ───────────────────────── 5. Results ───────────────────────── -->
+<section id="results">
+  <div class="col">
+    <h2>Results</h2>
+    <p>Everything below is class-conditional ImageNet-256 with DiT-XL, 80 epochs, 50 Euler steps, and 50,000 samples. Guided runs use internal guidance at scale 1.78.</p>
+  </div>
+
+  <figure class="viz" id="viz-headline">
+    <div class="tiles three">
+      <div class="tile">
+        <div class="tile-label">Guided, all 23 layers</div>
+        <div class="tile-value"><s>1.25</s><span class="to">→</span><b data-count="1.07">1.07</b></div>
+        <div class="tile-note">FuseLift matches the 7-layer baseline, at 4.5 dB higher PSNR</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Guided, 7 layers</div>
+        <div class="tile-value"><s>1.08</s><span class="to">→</span><b data-count="0.984">0.984</b></div>
+        <div class="tile-note">FuseLift on the official RAEv2 decoder</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">No guidance, all 23 layers</div>
+        <div class="tile-value"><s>3.01</s><span class="to">→</span><b data-count="2.21">2.21</b></div>
+        <div class="tile-note">FuseReg decoder, same sampled latents</div>
+      </div>
+    </div>
+  </figure>
+
+  <div class="col">
+    <h3>Moving the target closes the guided gap</h3>
+    <p>The decoder and every reconstruction are identical between the two curves. Only the space the DiT diffuses in differs.</p>
+  </div>
+
+  <figure class="viz" id="viz-lift-curves">
+    <div class="seg" role="group" aria-label="Fusion depth">
+      <button data-set="k23" aria-pressed="true">All 23 layers</button>
+      <button data-set="k7" aria-pressed="false">7 layers</button>
+    </div>
+    <h4 class="chart-title">Guided gFID during training <span>lower is better</span></h4>
+    <div class="chart" data-chart="lift"></div>
+  </figure>
+
+  <div class="col">
+    <h3>Against prior methods</h3>
+    <p>With the same 80-epoch budget and frozen decoders as RAEv2, FuseLift has the lowest gFID and the lowest FD<sub>r</sub><sup>6</sup>, the mean Fréchet distance ratio over six feature extractors, among pixel-space, latent and autoregressive models.</p>
+  </div>
+
+  <figure class="viz" id="viz-board">
+    <div class="seg" role="group" aria-label="Metric">
+      <button data-metric="gfid" aria-pressed="true">gFID</button>
+      <button data-metric="fdr6" aria-pressed="false">FD<sub>r</sub><sup>6</sup></button>
+    </div>
+    <div class="board" role="table" aria-label="Guided generation on ImageNet-256"></div>
+  </figure>
+
+  <div class="col">
+    <h3>Each tool has its regime</h3>
+    <p>Without guidance, sampling errors are broad and carry latents far from anything the decoder was trained on. Decoder tolerance decides the outcome, and FuseReg wins. With guidance, samples settle near clean latents, the remaining errors are small but spread over every channel, and the metric decides. FuseLift wins there.</p>
+    <p>Combining them beats the baseline in both regimes, though the gains do not simply add: on real encoders the two sets of directions overlap.</p>
+  </div>
+
+  <figure class="viz bare" id="samples">
+    <img src="assets/samples_mosaic.jpg" alt="Six by six grid of generated ImageNet samples: macaw, dogs, panda, balloon, lighthouse, volcano, burger, eagle, tiger, butterfly, flamingo, jellyfish, castle and more." width="560" height="560" loading="lazy">
+  </figure>
+  <div class="col">
+    <p class="aside">FuseLift samples from the 7-layer model at 0.984 gFID.</p>
+  </div>
+</section>
+
+<!-- ───────────────────────── 6. Reproduce ───────────────────────── -->
+<section id="reproduce">
+  <div class="col">
+    <h2>Reproduce it</h2>
+    <p>Checkpoints, the frozen decoders, the exact 50,000 samples behind the headline number, and the FID reference statistics they were scored against are on Hugging Face. The headline run is the 7-layer model on <i>h</i><sub>0</sub>: epoch 80, EMA weights, internal guidance 1.78, 50 Euler steps, sampling seed 1, giving gFID 0.984, IS 253.4 and FD<sub>r</sub><sup>6</sup> 2.14.</p>
+
+    <h3>Check 0.984 gFID in a few minutes</h3>
+    <div class="code"><button class="copy">Copy</button><pre><code>git clone https://github.com/Hongyang-Du/FuseLift.git && cd FuseLift
+python -m pip install -r requirements.txt
+hf download Hongyang-Du/FuseLift --local-dir checkpoints/fuselift
+
+pip install --no-deps "git+https://github.com/nanovisionx/nanogen-evals.git@19dfb4c2705333eb8b97e454fb354d47d1fe135b#subdirectory=fd_evaluator"
+python scripts/eval_npz.py checkpoints/fuselift/samples/ditxl_h0_raev2k7_ep080_ig178_50k.npz \
+  --fid-ref checkpoints/fuselift/reference/imagenet_256_fid_stats.npz
+# fid 0.984, inception_score 253.4, fdr6 2.14</code></pre></div>
+
+    <h3>Sample from the checkpoint</h3>
+    <div class="code"><button class="copy">Copy</button><pre><code>python src/sample_dit.py \
+  --config configs/stage2/training/fuselift-h0-raev2k7-ditxl.yaml \
+  --ckpt checkpoints/fuselift/k7/ditxl_h0_raev2k7_ep080.safetensors \
+  --classes 1 207 388 980 --per-class 4 --out outputs/fuselift_k7_grid.png</code></pre></div>
+
+    <h3>Train</h3>
+    <div class="code"><button class="copy">Copy</button><pre><code>GRAD_ACCUM_OVERRIDE=2 torchrun --standalone --nproc_per_node=8 src/train.py \
+  --config configs/stage2/training/fuselift-h0-raev2k7-ditxl.yaml \
+  --results-dir outputs/fuselift-h0-raev2k7 --precision bf16 \
+  dataset.data_dir=data/imagenet</code></pre></div>
+
+    <p>The <a href="https://github.com/Hongyang-Du/FuseLift#readme">README</a> covers regenerating all 50,000 samples from the checkpoint, the 23-layer model, the training recipe, and what each file in the repository does. FuseReg decoders and their training code live in the <a href="https://github.com/Hongyang-Du/FuseReg">FuseReg repository</a>.</p>
+
+    <h3>Cite</h3>
+    <div class="code"><button class="copy">Copy</button><pre><code>@article{du2026rethinking,
+  title  = {Rethinking the Reconstruction-Generation Gap in Representation Autoencoders},
+  author = {Du, Hongyang and Xie, Yunfei and Ye, Junjie and Yang, Jiawei and Cong, Xiaoyan and
+            Zhang, Haodong and Huang, Yongchao and Wu, Haiyu and Li, Zongxia and Gui, Shihang and
+            Liu, Dawei and Li, Runhao and Ni, Jingcheng and Wei, Chen and Balestriero, Randall and
+            Wang, Yue},
+  year   = {2026},
+  eprint = {2609.31620},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CV},
+  url    = {https://arxiv.org/abs/2609.31620}
+}</code></pre></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="col">
+    <p>Built on <a href="https://huggingface.co/nyu-visionx/RAEv2-models">RAEv2</a> decoders and <a href="https://github.com/facebookresearch/dinov3">DINOv3</a>. Code is released under CC BY-NC 4.0.</p>
+  </div>
+</footer>
+
+<script src="main.js" defer></script>
+</body>
+</html>
