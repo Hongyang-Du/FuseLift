@@ -197,20 +197,34 @@
     const fig = $('#viz-interface'); if (!fig) return;
     const P = new Tween(BASE);
     const text = {
-      baseline: 'The error leaks out of what the decoder tolerates.',
-      fusereg: 'FuseReg widens the tolerance.',
-      fuselift: 'FuseLift reshapes the error.',
+      baseline: 'The error is large where the decoder is sensitive.',
+      fusereg: 'FuseReg makes the decoder less sensitive.',
+      fuselift: 'FuseLift moves the error to where the decoder is not sensitive.',
     };
     const params = { baseline: BASE, fusereg: REG, fuselift: LIFT };
     const stack = $('.stack', fig);
     stack.classList.add('bad');
+    // The equation as areas. The tolerance ellipse is {e : eᵀ G e ≤ 1}, so sensitivity is 1 / semi-axis²,
+    // and the error covariance is the contour radius². Each direction contributes sensitivity × error.
+    const eq = $('.eqpanel', fig);
+    const setArea = p => {
+      if (!eq) return;
+      const dirs = { sens: [1 / (p.b * p.b), p.rv * p.rv], insens: [1 / (p.a * p.a), p.ru * p.ru] };
+      for (const k in dirs) {
+        const [g, c] = dirs[k], block = $('.plot .' + k, eq), part = $('.meter .' + k, eq);
+        block.style.width = (g / 3.3 * 100) + '%'; block.style.height = (c / 1.85 * 100) + '%';
+        part.style.width = (g * c / 3.4 * 100) + '%';
+      }
+    };
+    setArea(BASE);
     segmented(fig, 'mode', mode => {
       P.set(params[mode]);
+      setArea(params[mode]);
       setStatus(fig, text[mode]);
       $$('img[data-gen]', fig).forEach(im => im.classList.toggle('on', im.dataset.gen === mode));
       stack.classList.toggle('bad', mode === 'baseline');
     }, 4600);
-    mountCanvas($('canvas', fig), w => clamp(w * 0.58, 280, 350), (ctx, w, h, t) => {
+    mountCanvas($('canvas', fig), w => clamp(w * 0.74, 236, 330), (ctx, w, h, t) => {
       const s = Math.min(w / 3.9, h / 2.75);
       drawInterface(ctx, w / 2, h / 2, s, P.get(), t);
     });

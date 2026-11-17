@@ -66,8 +66,7 @@
 <section id="puzzle">
   <div class="col">
     <h2>More layers: sharper pixels, worse samples</h2>
-    <p>A Representation Autoencoder builds its latent space on a frozen vision encoder such as DINOv3 and trains only a pixel decoder on top. Deep encoder layers carry semantics, shallow layers carry fine spatial detail, so averaging more layers into the latent gives the decoder more to work with.</p>
-    <p>Reconstruction gets much sharper. Generation gets worse.</p>
+    <p>A Representation Autoencoder diffuses in the features of a frozen vision encoder such as DINOv3, with a pixel decoder trained on top. Averaging more encoder layers into the latent adds fine detail. Reconstruction gets much sharper. Generation gets worse.</p>
   </div>
 
   <figure class="viz" id="viz-puzzle">
@@ -97,8 +96,7 @@
   </figure>
 
   <div class="col">
-    <p>The usual reading is that this trade-off is about <em>information</em>: a latent full of detail is simply harder for a diffusion model to fit, so you tune the number of layers and give up fidelity for sample quality.</p>
-    <p>We hold the information fixed and show that most of the penalty comes from somewhere else: the <em>geometry</em> of the interface between a frozen encoder and its decoder.</p>
+    <p>The usual reading blames <em>information</em>: a detailed latent is harder to diffuse. We hold the information fixed and find the cause in the <em>geometry</em> of the interface between the frozen encoder and its decoder.</p>
   </div>
 </section>
 
@@ -106,8 +104,7 @@
 <section id="geometry">
   <div class="col">
     <h2>Same information, different geometry</h2>
-    <p>A latent’s information is what it encodes about the image. Its geometry is how an error in the latent turns into an error in pixels.</p>
-    <p>A diffusion model treats every latent direction alike: the same noise, the same squared-error weight. The decoder does not. Along some directions a small error ruins the image; along others it hardly shows. Nothing ties the two together, because the encoder was frozen before any pixel decoder existed.</p>
+    <p>A diffusion model treats every latent direction alike. The decoder does not: along some directions a small error ruins the image, along others it hardly shows.</p>
   </div>
 
   <figure class="viz" id="viz-interface">
@@ -116,9 +113,17 @@
       <button data-mode="fusereg" aria-pressed="false">FuseReg</button>
       <button data-mode="fuselift" aria-pressed="false">FuseLift</button>
     </div>
-    <p class="viz-status" data-status>The error leaks out of what the decoder tolerates.</p>
+    <p class="viz-status" data-status>The error is large where the decoder is sensitive.</p>
     <div class="interface-grid">
       <canvas aria-label="Diagram: a cloud of sampled latents around a clean latent, drawn over the elliptical region of errors the decoder tolerates. Samples outside the region become visible errors."></canvas>
+      <div class="eqpanel" role="img" aria-label="The equation drawn as areas. Each latent direction is a block whose width is the decoder's sensitivity and whose height is the DiT's error. The total shaded area is the pixel error. FuseReg narrows the block of the sensitive direction; FuseLift flattens it.">
+        <p class="eq"><span class="eq-lhs">pixel error</span> ≈ tr(<span class="t-dec"><i>G</i><sub>D</sub></span> <span class="t-gen"><i>C</i><sub>G</sub></span>)</p>
+        <p class="axis y"><span class="t-gen"><i>C</i><sub>G</sub></span> DiT error ↑</p>
+        <div class="plot"><i class="sens"></i><i class="insens"></i></div>
+        <p class="axis x"><span class="t-dec"><i>G</i><sub>D</sub></span> decoder sensitivity →</p>
+        <p class="meter-label">pixel error = shaded area</p>
+        <div class="meter"><i class="sens"></i><i class="insens"></i></div>
+      </div>
       <div class="decoded">
         <figure>
           <img src="assets/macaw_recon.jpg" alt="Sharp reconstruction of a macaw" width="256" height="256">
@@ -138,20 +143,13 @@
       <li><svg viewBox="0 0 34 20"><ellipse cx="17" cy="10" rx="15" ry="7.5" class="k-tol"/></svg>decoder tolerance</li>
       <li><svg viewBox="0 0 34 20"><circle cx="17" cy="10" r="8.5" class="k-err"/><circle cx="14" cy="8" r="1.8" class="k-dot"/><circle cx="20" cy="12" r="1.8" class="k-dot"/></svg>DiT samples</li>
       <li><svg viewBox="0 0 34 20"><path d="M11 4l12 12M23 4L11 16" class="k-x"/></svg>visible error</li>
-      <li><svg viewBox="0 0 34 20"><path d="M3 10h22M20 5l7 5-7 5" class="k-sens"/></svg>sensitive direction</li>
-      <li><svg viewBox="0 0 34 20"><path d="M3 10h22M20 5l7 5-7 5" class="k-insens"/></svg>insensitive direction</li>
+      <li><svg viewBox="0 0 34 20"><path d="M3 10h22M20 5l7 5-7 5" class="k-sens"/></svg>sensitive</li>
+      <li><svg viewBox="0 0 34 20"><path d="M3 10h22M20 5l7 5-7 5" class="k-insens"/></svg>insensitive</li>
     </ul>
   </figure>
 
   <div class="col">
-    <p>To first order, the pixel error of a sampled latent is the decoder’s sensitivity times the generator’s error, summed over latent directions:</p>
-    <p class="eq"><span class="eq-lhs">pixel error</span> ≈ tr(<span class="t-dec"><i>G</i><sub>D</sub></span> <span class="t-gen"><i>C</i><sub>G</sub></span>)</p>
-    <p>With the latent’s content untouched, there are exactly two ways to shrink it:</p>
-    <ul class="levers">
-      <li><strong>FuseReg</strong> trains the decoder to be less sensitive where errors land.</li>
-      <li><strong>FuseLift</strong> freezes the decoder and moves the diffusion model, so that its errors are small where the decoder is sensitive.</li>
-    </ul>
-
+    <p>Pixel error is decoder sensitivity times DiT error, added up over latent directions. With the latent untouched, there are two ways to shrink it: <strong>FuseReg</strong> makes the decoder less sensitive, and <strong>FuseLift</strong> moves the DiT’s error away from the sensitive directions.</p>
   </div>
 </section>
 
@@ -159,8 +157,7 @@
 <section id="fusereg">
   <div class="col">
     <h2>FuseReg: widen what the decoder tolerates</h2>
-    <p>A standard full-fusion decoder only ever sees one input per image: the exact average of all 23 layers. The ways individual layers deviate from that average cancel out inside it, so training never tells the decoder how to behave along them. It ends up brittle: drop a single shallow layer and reconstruction loses up to 3 dB.</p>
-    <p>FuseReg trains the decoder on the average of a <em>random subset</em> of layers, and asks for the same image every time. The subset averages stay centered on the full average, so at test time nothing changes: same encoder, same latent, same diffusion target. Only the decoder’s tolerance has grown.</p>
+    <p>A full-fusion decoder only ever sees one input per image: the exact average of all 23 layers. FuseReg trains it on the average of a <em>random subset</em> of layers and asks for the same image every time. At test time nothing changes: same encoder, same latent, same diffusion target.</p>
   </div>
 
   <figure class="viz" id="viz-fusereg">
@@ -169,8 +166,7 @@
   </figure>
 
   <div class="col">
-    <p>The cleanest test of tolerance: train one DiT-XL on full-fusion latents, keep its 50,000 sampled latents fixed, and swap only the decoder that renders them. Without guidance, the same latents score 2.21 gFID instead of 3.01. The samples already contained sharper structure than the standard decoder could render.</p>
-    <p>With guidance the gain fades as training converges, and both decoders land on 1.25. Guidance pulls samples close to clean latents, where the errors that remain are spread across all 1,024 channels. Layer subsets can only widen tolerance along the 22 directions in which layers disagree. The rest needs a different tool.</p>
+    <p>Keep 50,000 sampled latents fixed and swap only the decoder: unguided gFID drops from 3.01 to 2.21. With guidance, both decoders converge to 1.25. The errors that remain are spread over every channel, beyond the directions in which layers disagree, and need a different tool.</p>
   </div>
 </section>
 
@@ -178,7 +174,7 @@
 <section id="fuselift">
   <div class="col">
     <h2>FuseLift: diffuse where the decoder measures</h2>
-    <p>Leave the decoder frozen, and move the diffusion model instead. The decoder’s first operation is a linear projection of the latent. FuseLift trains the DiT on the output of that projection, <i>h</i><sub>0</sub>, instead of on the encoder latent <i>z</i>.</p>
+    <p>Freeze the decoder and move the diffusion model instead. The decoder begins with a linear projection of the latent. FuseLift trains the DiT on the output of that projection, <i>h</i><sub>0</sub>, instead of the encoder latent <i>z</i>.</p>
   </div>
 
   <figure class="viz" id="viz-lift">
@@ -209,9 +205,8 @@
   </figure>
 
   <div class="col">
-    <p>Because <i>h</i><sub>0</sub> is an invertible affine map of <i>z</i>, nothing about the tokenizer changes. Every clean image reconstructs exactly as before, the decoder weights are untouched, and the DiT keeps its architecture, loss, noise schedule and guidance recipe.</p>
-    <p>What changes is the ruler. The projection stretches the directions the decoder reads most strongly. Unit noise is now small next to them, and a squared error there costs more. Both effects scale with the squared gain of the projection, so the DiT spends its capacity where pixels are at stake.</p>
-    <p>One step is the right depth. Diffusing further in, after the first or the eighth decoder block, keeps reconstruction identical but generates worse, because nonlinear blocks trade the encoder’s linear semantics for pixel synthesis. One affine step keeps the encoder’s semantics and takes a first-order version of the decoder’s pixel metric.</p>
+    <p><i>h</i><sub>0</sub> is an invertible affine map of <i>z</i>, so every reconstruction, the decoder weights and the DiT recipe stay the same. Only the ruler changes: the directions the decoder reads most strongly are stretched, so the DiT spends its capacity where pixels are at stake.</p>
+    <p>One linear step is the right depth. Diffusing deeper, after nonlinear decoder blocks, generates worse.</p>
   </div>
 </section>
 
@@ -219,7 +214,7 @@
 <section id="results">
   <div class="col">
     <h2>Results</h2>
-    <p>Everything below is class-conditional ImageNet-256 with DiT-XL, 80 epochs, 50 Euler steps, and 50,000 samples. Guided runs use internal guidance at scale 1.78.</p>
+    <p>Class-conditional ImageNet-256 with DiT-XL: 80 epochs, 50 sampling steps, 50,000 samples. Guided runs use internal guidance at scale 1.78.</p>
   </div>
 
   <figure class="viz" id="viz-headline">
@@ -244,7 +239,7 @@
 
   <div class="col">
     <h3>Moving the target closes the guided gap</h3>
-    <p>The decoder and every reconstruction are identical between the two curves. Only the space the DiT diffuses in differs.</p>
+    <p>Same decoder, same reconstructions. Only the space the DiT diffuses in differs.</p>
   </div>
 
   <figure class="viz" id="viz-lift-curves">
@@ -258,7 +253,7 @@
 
   <div class="col">
     <h3>Against prior methods</h3>
-    <p>With the same 80-epoch budget and frozen decoders as RAEv2, FuseLift has the lowest gFID and the lowest FD<sub>r</sub><sup>6</sup>, the mean Fréchet distance ratio over six feature extractors, among pixel-space, latent and autoregressive models.</p>
+    <p>Lowest gFID and lowest FD<sub>r</sub><sup>6</sup>, the mean Fréchet distance ratio over six feature extractors, with the same 80-epoch budget and frozen decoders as RAEv2.</p>
   </div>
 
   <figure class="viz" id="viz-board">
@@ -271,8 +266,7 @@
 
   <div class="col">
     <h3>Each tool has its regime</h3>
-    <p>Without guidance, sampling errors are broad and carry latents far from anything the decoder was trained on. Decoder tolerance decides the outcome, and FuseReg wins. With guidance, samples settle near clean latents, the remaining errors are small but spread over every channel, and the metric decides. FuseLift wins there.</p>
-    <p>Combining them beats the baseline in both regimes, though the gains do not simply add: on real encoders the two sets of directions overlap.</p>
+    <p>Without guidance, errors are large and decoder tolerance decides: FuseReg wins. With guidance, errors are small but spread over every channel, and the metric decides: FuseLift wins. Together they beat the baseline in both regimes.</p>
   </div>
 
   <figure class="viz bare" id="samples">
@@ -287,7 +281,7 @@
 <section id="code">
   <div class="col">
     <h2>Code and reproduction</h2>
-    <p>The <a href="https://github.com/Hongyang-Du/FuseLift#readme">repository</a> has everything needed to reproduce these numbers: checking the 0.984 gFID from the released samples, regenerating them from the checkpoint, and training. Checkpoints, the frozen decoders, the 50,000 samples and the FID reference statistics are on <a href="https://huggingface.co/Hongyang-Du/FuseLift">Hugging Face</a>. FuseReg decoders and their training code live in the <a href="https://github.com/Hongyang-Du/FuseReg">FuseReg repository</a>.</p>
+    <p>Everything needed to reproduce these numbers is in the <a href="https://github.com/Hongyang-Du/FuseLift#readme">repository</a>. Checkpoints, decoders, the 50,000 samples and the FID reference statistics are on <a href="https://huggingface.co/Hongyang-Du/FuseLift">Hugging Face</a>. FuseReg decoders are in the <a href="https://github.com/Hongyang-Du/FuseReg">FuseReg repository</a>.</p>
 
     <h3>Cite</h3>
     <div class="code"><button class="copy">Copy</button><pre><code>@article{du2026rethinking,
