@@ -284,7 +284,9 @@ footer p { margin: 0; }
   .interface-grid { grid-template-columns: 1fr; }
   .decoded { grid-template-columns: 1fr 1fr; }
   .seg { display: flex; }
-  .pipe { gap: 62px 8px; }
+  .pipe { gap: 58px 6px; margin-bottom: 58px; }
+  .pipe .io { display: none; }            /* drop the end images so the pipeline fits two rows */
+  .node { padding: 8px 12px; }
   .seg button { flex: 1 1 auto; padding: 10px 12px; }
   .brow { grid-template-columns: minmax(0, 1fr); height: 62px; gap: 2px; align-content: center; }
   .brow .ep { display: none; }

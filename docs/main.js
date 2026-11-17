@@ -10,14 +10,28 @@
   const SANS = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
 
   // ── theme tokens (read from CSS so light and dark stay in one place) ──
+  // Some browsers (iOS WebKit) can run this script before the stylesheet has applied, in which case the
+  // custom properties read back empty and every canvas colour falls back to black. So: start from built-in
+  // defaults, only accept non-empty values, and keep re-reading.
+  const DEFAULTS = {
+    light: { bg: '#fbfaf7', card: '#ffffff', ink: '#1d232b', 'ink-2': '#414b58', muted: '#687484', line: '#e6e3dc',
+      blue: '#1c6fb8', 'blue-fill': '#d9e8f6', 'blue-soft': '#8fb9df', amber: '#e08a1e', red: '#d2402c',
+      purple: '#8b3fb0', teal: '#12917b', dot: '#28313c', gray: '#8a94a3' },
+    dark: { bg: '#14161a', card: '#1b1e24', ink: '#eceef1', 'ink-2': '#c3c9d2', muted: '#929ba8', line: '#2d313a',
+      blue: '#4a9be0', 'blue-fill': '#1e3246', 'blue-soft': '#3f6f9c', amber: '#dd8f33', red: '#ee6a55',
+      purple: '#b97fda', teal: '#3dbba2', dot: '#d9dee5', gray: '#7d8795' },
+  };
+  const darkQuery = matchMedia('(prefers-color-scheme: dark)');
   const T = {};
   const readTheme = () => {
-    const cs = getComputedStyle(document.documentElement);
-    for (const k of ['bg', 'card', 'ink', 'ink-2', 'muted', 'line', 'blue', 'blue-fill', 'blue-soft',
-      'amber', 'red', 'purple', 'teal', 'dot', 'gray']) T[k] = cs.getPropertyValue('--' + k).trim();
+    const cs = getComputedStyle(document.documentElement), base = DEFAULTS[darkQuery.matches ? 'dark' : 'light'];
+    for (const k in base) T[k] = cs.getPropertyValue('--' + k).trim() || base[k];
   };
   readTheme();
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTheme);
+  darkQuery.addEventListener('change', readTheme);
+  addEventListener('load', readTheme);
+  addEventListener('pageshow', readTheme);
+  setInterval(readTheme, 1000);
 
   // ── seeded randomness, so every visitor sees the same picture ──
   const rng = seed => () => {
@@ -44,8 +58,13 @@
   const loops = [];
   function mountCanvas(canvas, heightFor, draw) {
     const ctx = canvas.getContext('2d');
-    const st = { w: 0, h: 0, visible: false };
-    const render = now => { ctx.clearRect(0, 0, st.w, st.h); draw(ctx, st.w, st.h, reduce ? 0 : now / 1000); };
+    const st = { w: 0, h: 0, dpr: 1, visible: false };
+    const render = now => {
+      // start every frame from a known state, so one failed frame cannot corrupt the next
+      ctx.setTransform(st.dpr, 0, 0, st.dpr, 0, 0); ctx.globalAlpha = 1; ctx.setLineDash([]);
+      ctx.clearRect(0, 0, st.w, st.h);
+      try { draw(ctx, st.w, st.h, reduce ? 0 : now / 1000); } catch (e) { console.error(e); }
+    };
     const resize = () => {
       const w = canvas.clientWidth;
       if (!w) return;
@@ -53,8 +72,7 @@
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.style.height = h + 'px';
       canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      st.w = w; st.h = h;
+      st.w = w; st.h = h; st.dpr = dpr;
       render(performance.now());
     };
     new ResizeObserver(resize).observe(canvas.parentElement);

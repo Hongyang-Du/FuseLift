@@ -26,7 +26,7 @@
     <a href="#fusereg">FuseReg</a>
     <a href="#fuselift">FuseLift</a>
     <a href="#results">Results</a>
-    <a href="#reproduce">Reproduce</a>
+    <a href="https://github.com/Hongyang-Du/FuseLift">Code</a>
   </div>
 </nav>
 
@@ -47,10 +47,9 @@
       <a class="btn primary" href="https://arxiv.org/abs/2609.31620">Paper</a>
       <a class="btn" href="https://github.com/Hongyang-Du/FuseLift">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
-        Code
+        Code and reproduction
       </a>
       <a class="btn" href="https://huggingface.co/Hongyang-Du/FuseLift">🤗 Models and samples</a>
-      <a class="btn" href="#reproduce">Reproduce 0.984 gFID</a>
     </div>
   </div>
 
@@ -190,7 +189,7 @@
 
     <div class="pipe" aria-label="Pipeline: image, frozen encoder, latent z, frozen linear projection, h0, frozen decoder blocks, image">
       <div class="node io"><img src="assets/macaw_recon.jpg" alt="" width="52" height="52"></div>
-      <div class="arrow"></div>
+      <div class="arrow io"></div>
       <div class="node frozen">Encoder</div>
       <div class="arrow"></div>
       <div class="node tap" data-tap="z"><span><i>z</i></span></div>
@@ -200,7 +199,7 @@
       <div class="node tap" data-tap="h0"><span><i>h</i><sub>0</sub></span></div>
       <div class="arrow"></div>
       <div class="node frozen">Decoder blocks</div>
-      <div class="arrow"></div>
+      <div class="arrow io"></div>
       <div class="node io"><img src="assets/macaw_fuselift.jpg" alt="" width="52" height="52"></div>
       <div class="dit-badge" aria-hidden="true">DiT</div>
     </div>
@@ -284,35 +283,11 @@
   </div>
 </section>
 
-<!-- ───────────────────────── 6. Reproduce ───────────────────────── -->
-<section id="reproduce">
+<!-- ───────────────────────── 6. Code ───────────────────────── -->
+<section id="code">
   <div class="col">
-    <h2>Reproduce it</h2>
-    <p>Checkpoints, the frozen decoders, the exact 50,000 samples behind the headline number, and the FID reference statistics they were scored against are on Hugging Face. The headline run is the 7-layer model on <i>h</i><sub>0</sub>: epoch 80, EMA weights, internal guidance 1.78, 50 Euler steps, sampling seed 1, giving gFID 0.984, IS 253.4 and FD<sub>r</sub><sup>6</sup> 2.14.</p>
-
-    <h3>Check 0.984 gFID in a few minutes</h3>
-    <div class="code"><button class="copy">Copy</button><pre><code>git clone https://github.com/Hongyang-Du/FuseLift.git && cd FuseLift
-python -m pip install -r requirements.txt
-hf download Hongyang-Du/FuseLift --local-dir checkpoints/fuselift
-
-pip install --no-deps "git+https://github.com/nanovisionx/nanogen-evals.git@19dfb4c2705333eb8b97e454fb354d47d1fe135b#subdirectory=fd_evaluator"
-python scripts/eval_npz.py checkpoints/fuselift/samples/ditxl_h0_raev2k7_ep080_ig178_50k.npz \
-  --fid-ref checkpoints/fuselift/reference/imagenet_256_fid_stats.npz
-# fid 0.984, inception_score 253.4, fdr6 2.14</code></pre></div>
-
-    <h3>Sample from the checkpoint</h3>
-    <div class="code"><button class="copy">Copy</button><pre><code>python src/sample_dit.py \
-  --config configs/stage2/training/fuselift-h0-raev2k7-ditxl.yaml \
-  --ckpt checkpoints/fuselift/k7/ditxl_h0_raev2k7_ep080.safetensors \
-  --classes 1 207 388 980 --per-class 4 --out outputs/fuselift_k7_grid.png</code></pre></div>
-
-    <h3>Train</h3>
-    <div class="code"><button class="copy">Copy</button><pre><code>GRAD_ACCUM_OVERRIDE=2 torchrun --standalone --nproc_per_node=8 src/train.py \
-  --config configs/stage2/training/fuselift-h0-raev2k7-ditxl.yaml \
-  --results-dir outputs/fuselift-h0-raev2k7 --precision bf16 \
-  dataset.data_dir=data/imagenet</code></pre></div>
-
-    <p>The <a href="https://github.com/Hongyang-Du/FuseLift#readme">README</a> covers regenerating all 50,000 samples from the checkpoint, the 23-layer model, the training recipe, and what each file in the repository does. FuseReg decoders and their training code live in the <a href="https://github.com/Hongyang-Du/FuseReg">FuseReg repository</a>.</p>
+    <h2>Code and reproduction</h2>
+    <p>The <a href="https://github.com/Hongyang-Du/FuseLift#readme">repository</a> has everything needed to reproduce these numbers: checking the 0.984 gFID from the released samples, regenerating them from the checkpoint, and training. Checkpoints, the frozen decoders, the 50,000 samples and the FID reference statistics are on <a href="https://huggingface.co/Hongyang-Du/FuseLift">Hugging Face</a>. FuseReg decoders and their training code live in the <a href="https://github.com/Hongyang-Du/FuseReg">FuseReg repository</a>.</p>
 
     <h3>Cite</h3>
     <div class="code"><button class="copy">Copy</button><pre><code>@article{du2026rethinking,
