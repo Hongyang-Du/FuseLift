@@ -204,29 +204,121 @@
     const params = { baseline: BASE, fusereg: REG, fuselift: LIFT };
     const stack = $('.stack', fig);
     stack.classList.add('bad');
-    // The equation as areas. The tolerance ellipse is {e : eᵀ G e ≤ 1}, so sensitivity is 1 / semi-axis²,
-    // and the error covariance is the contour radius². Each direction contributes sensitivity × error.
-    const eq = $('.eqpanel', fig);
-    const setArea = p => {
-      if (!eq) return;
-      const dirs = { sens: [1 / (p.b * p.b), p.rv * p.rv], insens: [1 / (p.a * p.a), p.ru * p.ru] };
-      for (const k in dirs) {
-        const [g, c] = dirs[k], block = $('.plot .' + k, eq), part = $('.meter .' + k, eq);
-        block.style.width = (g / 3.3 * 100) + '%'; block.style.height = (c / 1.85 * 100) + '%';
-        part.style.width = (g * c / 3.4 * 100) + '%';
-      }
-    };
-    setArea(BASE);
     segmented(fig, 'mode', mode => {
       P.set(params[mode]);
-      setArea(params[mode]);
       setStatus(fig, text[mode]);
       $$('img[data-gen]', fig).forEach(im => im.classList.toggle('on', im.dataset.gen === mode));
       stack.classList.toggle('bad', mode === 'baseline');
     }, 4600);
-    mountCanvas($('canvas', fig), w => clamp(w * 0.74, 236, 330), (ctx, w, h, t) => {
+    mountCanvas($('canvas', fig), w => clamp(w * 0.58, 280, 350), (ctx, w, h, t) => {
       const s = Math.min(w / 3.9, h / 2.75);
       drawInterface(ctx, w / 2, h / 2, s, P.get(), t);
+    });
+  })();
+
+  // ── 1b. the equation: hover, focus or tap a factor to see what it measures ──
+  (() => {
+    const wrap = $('#eq'); if (!wrap) return;
+    const line = $('.eqline', wrap), pop = $('.eqpop', wrap), terms = $$('.term', wrap);
+    const info = {
+      g: { title: 'Decoder sensitivity', note: 'The same step in latent space breaks the image along one direction, and not along the other.' },
+      c: { title: 'DiT error', note: 'Sampled latents land around the clean one, equally far in every direction.' },
+    };
+    const load = src => { const im = new Image(); im.src = src; return im; };
+    const clean = load('assets/macaw_recon.jpg'), broken = load('assets/macaw_corrupted.jpg');
+    const ready = im => im.complete && im.naturalWidth > 0;
+    let cur = null, pinned = false, t0 = 0;
+
+    const show = k => {
+      if (cur !== k) t0 = performance.now() / 1000;
+      cur = k;
+      $('.pop-title', pop).textContent = info[k].title;
+      $('.pop-note', pop).textContent = info[k].note;
+      pop.dataset.term = k;
+      terms.forEach(b => { const on = b.dataset.term === k; b.classList.toggle('on', on); b.setAttribute('aria-expanded', on); });
+      const b = terms.find(x => x.dataset.term === k), pw = pop.offsetWidth;
+      const nx = b.offsetLeft + b.offsetWidth / 2 - (line.clientWidth / 2 - pw / 2);   // notch under the factor
+      pop.style.setProperty('--nx', clamp(nx, 26, pw - 26) + 'px');
+      pop.classList.add('open'); wrap.classList.add('seen');
+    };
+    const hide = () => {
+      cur = null; pinned = false; pop.classList.remove('open');
+      terms.forEach(b => { b.classList.remove('on'); b.setAttribute('aria-expanded', false); });
+    };
+    terms.forEach(b => {
+      const k = b.dataset.term;
+      b.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse' && !pinned) show(k); });
+      b.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !pinned) hide(); });
+      b.addEventListener('focus', () => { if (!pinned) show(k); });
+      b.addEventListener('blur', () => { if (!pinned) hide(); });
+      b.addEventListener('click', e => { e.stopPropagation(); if (pinned && cur === k) hide(); else { pinned = true; show(k); } });
+    });
+    document.addEventListener('click', () => { if (cur) hide(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && cur) hide(); });
+
+    // G_D: take the same step along each direction; only one of them leaves the tolerance and breaks the image.
+    const drawG = (ctx, w, h, t) => {
+      const im = Math.min(108, h - 30), gap = 36, plotW = w - im - gap;
+      const s = Math.min(plotW / 3.45, h / 2.35), cx = plotW / 2, cy = h / 2, STEP = 1.0;
+      const u = ((t % 6) + 6) % 6, second = u >= 3, v = second ? u - 3 : u;
+      const k = v < 1.2 ? ease(v / 1.2) : v < 2.3 ? 1 : v < 2.9 ? 1 - ease((v - 2.3) / 0.6) : 0;
+      const d = k * STEP, bad = second ? 0 : clamp((d - BASE.b) / 0.22);
+
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(TILT);
+      ctx.beginPath(); ctx.ellipse(0, 0, BASE.a * s, BASE.b * s, 0, 0, 7);
+      ctx.fillStyle = T['blue-fill']; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = T.blue; ctx.stroke();
+      ctx.globalAlpha = 0.28;
+      arrow(ctx, 0, 0, STEP * s, 0, T.teal); arrow(ctx, 0, 0, 0, -STEP * s, T.purple);
+      ctx.globalAlpha = 1;
+      const tx = second ? d * s : 0, ty = second ? 0 : -d * s;
+      arrow(ctx, 0, 0, tx, ty, second ? T.teal : T.purple, 3.6);
+      if (bad > 0.5) {
+        ctx.strokeStyle = T.red; ctx.lineWidth = 3.4; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(tx - 8, ty - 22); ctx.lineTo(tx + 8, ty - 6); ctx.moveTo(tx + 8, ty - 22); ctx.lineTo(tx - 8, ty - 6); ctx.stroke();
+      }
+      cleanLatent(ctx, 0, 0);
+      ctx.restore();
+
+      arrow(ctx, plotW + 4, cy, plotW + gap - 8, cy, T.gray, 2.4);
+      const x = w - im, y = (h - im) / 2;
+      ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, im, im, 10); ctx.clip();
+      if (ready(clean)) ctx.drawImage(clean, x, y, im, im);
+      if (bad > 0 && ready(broken)) { ctx.globalAlpha = bad; ctx.drawImage(broken, x, y, im, im); }
+      ctx.restore();
+      if (bad > 0) {
+        ctx.globalAlpha = bad; ctx.lineWidth = 4; ctx.strokeStyle = T.red;
+        ctx.beginPath(); ctx.roundRect(x + 2, y + 2, im - 4, im - 4, 8); ctx.stroke(); ctx.globalAlpha = 1;
+      }
+    };
+
+    // C_G: samples appear around the clean latent, then the contour that summarises them.
+    const drawC = (ctx, w, h, t, time) => {
+      const s = Math.min(w / 3.2, h / 2.4), cx = w / 2, cy = h / 2, R = BASE.ru;
+      const u = ((t % 6.4) + 6.4) % 6.4, fade = u > 5.7 ? 1 - (u - 5.7) / 0.7 : 1;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(TILT);
+      DOTS.forEach((dot, i) => {
+        const k = clamp((u - ((i * 17) % DOTS.length) * 0.055) / 0.25);
+        if (k <= 0) return;
+        const x = R * s * (dot.x + 0.04 * Math.sin(time * 0.9 + dot.ph)), y = R * s * (dot.y + 0.04 * Math.cos(time * 0.7 + dot.ph * 1.3));
+        ctx.globalAlpha = k * fade; ctx.fillStyle = T.dot;
+        ctx.beginPath(); ctx.arc(x, y, 4.4 * (0.5 + 0.5 * ease(k)), 0, 7); ctx.fill();
+      });
+      const ring = ease(clamp((u - 2.3) / 0.8));
+      if (ring > 0) {
+        ctx.globalAlpha = ring * fade; ctx.setLineDash([8, 7]); ctx.lineWidth = 2.4; ctx.strokeStyle = T.dot;
+        ctx.beginPath(); ctx.arc(0, 0, R * s, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      }
+      const grow = ease(clamp((u - 2.9) / 0.8));
+      ctx.globalAlpha = fade;
+      if (grow > 0) { arrow(ctx, 0, 0, grow * R * s * 0.98, 0, T.teal, 3.6); arrow(ctx, 0, 0, 0, -grow * R * s * 0.98, T.purple, 3.6); }
+      cleanLatent(ctx, 0, 0);
+      ctx.restore();
+    };
+
+    mountCanvas($('canvas', pop), () => 176, (ctx, w, h, time) => {
+      if (!cur) return;
+      if (cur === 'g') drawG(ctx, w, h, reduce ? 1.6 : time - t0);
+      else drawC(ctx, w, h, reduce ? 4.5 : time - t0, time);
     });
   })();
 

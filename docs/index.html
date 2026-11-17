@@ -116,14 +116,6 @@
     <p class="viz-status" data-status>The error is large where the decoder is sensitive.</p>
     <div class="interface-grid">
       <canvas aria-label="Diagram: a cloud of sampled latents around a clean latent, drawn over the elliptical region of errors the decoder tolerates. Samples outside the region become visible errors."></canvas>
-      <div class="eqpanel" role="img" aria-label="The equation drawn as areas. Each latent direction is a block whose width is the decoder's sensitivity and whose height is the DiT's error. The total shaded area is the pixel error. FuseReg narrows the block of the sensitive direction; FuseLift flattens it.">
-        <p class="eq"><span class="eq-lhs">pixel error</span> ≈ tr(<span class="t-dec"><i>G</i><sub>D</sub></span> <span class="t-gen"><i>C</i><sub>G</sub></span>)</p>
-        <p class="axis y"><span class="t-gen"><i>C</i><sub>G</sub></span> DiT error ↑</p>
-        <div class="plot"><i class="sens"></i><i class="insens"></i></div>
-        <p class="axis x"><span class="t-dec"><i>G</i><sub>D</sub></span> decoder sensitivity →</p>
-        <p class="meter-label">pixel error = shaded area</p>
-        <div class="meter"><i class="sens"></i><i class="insens"></i></div>
-      </div>
       <div class="decoded">
         <figure>
           <img src="assets/macaw_recon.jpg" alt="Sharp reconstruction of a macaw" width="256" height="256">
@@ -149,6 +141,17 @@
   </figure>
 
   <div class="col">
+    <div class="eqwrap" id="eq">
+      <div class="eqline">
+        <p class="eq"><span class="eq-lhs">pixel error</span> ≈ tr(<button type="button" class="term t-dec" data-term="g" aria-controls="eq-pop" aria-expanded="false" aria-label="G D, decoder sensitivity"><i>G</i><sub>D</sub></button> <button type="button" class="term t-gen" data-term="c" aria-controls="eq-pop" aria-expanded="false" aria-label="C G, DiT error"><i>C</i><sub>G</sub></button>)</p>
+        <div class="eqpop" id="eq-pop" role="tooltip">
+          <p class="pop-title"></p>
+          <canvas aria-hidden="true"></canvas>
+          <p class="pop-note"></p>
+        </div>
+      </div>
+      <p class="eq-hint"><span class="h-hover">Hover over a term</span><span class="h-tap">Tap a term</span></p>
+    </div>
     <p>Pixel error is decoder sensitivity times DiT error, added up over latent directions. With the latent untouched, there are two ways to shrink it: <strong>FuseReg</strong> makes the decoder less sensitive, and <strong>FuseLift</strong> moves the DiT’s error away from the sensitive directions.</p>
   </div>
 </section>
