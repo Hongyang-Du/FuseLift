@@ -336,7 +336,10 @@ footer p { margin: 0; }
   .arrow { width: 9px; }
   .dit-badge { padding: 4px 13px; font-size: 16px; }
   .seg button { flex: 1 1 auto; padding: 10px 12px; }
-  .brow { grid-template-columns: minmax(0, 1fr); height: 62px; gap: 2px; align-content: center; }
+  /* one line per method, so the 14-row board stays about one screen tall */
+  .brow { grid-template-columns: 146px minmax(0, 1fr); height: 38px; gap: 6px; font-size: 15px; }
+  .brow .bar { height: 16px; }
+  .brow .track { gap: 7px; }
   .brow .ep { display: none; }
 }
 

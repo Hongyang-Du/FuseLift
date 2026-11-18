@@ -73,7 +73,7 @@ signal-to-noise ratio and their weight in the squared loss by the squared gain.
 
 ImageNet-256, 50,000 samples, 50 Euler steps, EMA weights. FID is computed against ImageNet **train**
 statistics (the official RAEv2 reference). IG = internal guidance, scale 1.78 on t in [0.1, 1]. FDr6 is
-the mean Fréchet distance ratio over six feature extractors. Each cell is gFID / IS / FDr6.
+the Fréchet distance in the features of six different networks, averaged. Each cell is gFID / IS / FDr6.
 
 | Model | Fused layers | No guidance | IG 1.78 |
 | --- | --- | --- | --- |

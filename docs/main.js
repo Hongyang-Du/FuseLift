@@ -615,7 +615,8 @@
     const rows = [
       ['SiT-XL/2', 1400, 1.92, 7.48], ['SiT-XL/2 + REPA', 1400, 1.30, 5.44], ['LightningDiT', 800, 1.24, 4.58],
       ['DDT-XL', 800, 1.29, 5.75], ['REPA-E', 800, 1.12, 3.06], ['REG', 800, 1.45, 4.50], ['RAE-XL', 800, 1.14, 3.27],
-      ['JiT-H/16', 600, 1.87, 7.68], ['BAR-L', 400, 0.998, 3.64], ['RAEv2', 80, 1.08, 2.19],
+      ['JiT-H/16', 600, 1.87, 7.68], ['PixelDiT-XL', 320, 1.64, 4.40], ['SFD-XL', 800, 1.05, 2.40],
+      ['BAR-L', 400, 0.998, 3.64], ['RAEv2', 80, 1.08, 2.19],
       ['FuseLift, 23 layers', 80, 1.07, 2.30, 1], ['FuseLift, 7 layers', 80, 0.984, 2.14, 1],
     ].map(([name, ep, gfid, fdr6, ours]) => ({ name, ep, gfid, fdr6, ours }));
     const max = { gfid: 1.92, fdr6: 7.68 };
@@ -627,12 +628,12 @@
     });
     let metric = 'gfid', shown = reduce;
     const layout = () => {
-      const rh = matchMedia('(max-width: 760px)').matches ? 62 : 34;
+      const rh = matchMedia('(max-width: 760px)').matches ? 38 : 34;
       const order = [...rows].sort((a, b) => a[metric] - b[metric]);
       board.style.height = rows.length * rh + 'px';
       order.forEach((r, i) => {
         r.el.style.transform = `translateY(${i * rh}px)`;
-        $('.bar', r.el).style.width = shown ? `calc((100% - 74px) * ${r[metric] / max[metric]})` : '0';
+        $('.bar', r.el).style.width = shown ? `calc((100% - 60px) * ${r[metric] / max[metric]})` : '0';
         const v = r[metric];
         $('.v', r.el).textContent = metric === 'gfid' && v < 1 ? v.toFixed(3) : v.toFixed(2);
         r.el.title = `${r.name}: ${r.ep} training epochs`;
