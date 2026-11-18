@@ -182,8 +182,8 @@
 
   <figure class="viz" id="viz-lift">
     <div class="seg" role="group" aria-label="Diffusion target">
-      <button data-mode="z" aria-pressed="true">Standard: diffuse on z</button>
-      <button data-mode="h0" aria-pressed="false">FuseLift: diffuse on h₀</button>
+      <button data-mode="z" aria-pressed="true"><span class="wide">Standard: </span>diffuse on z</button>
+      <button data-mode="h0" aria-pressed="false"><span class="wide">FuseLift: </span>diffuse on h₀</button>
     </div>
 
     <div class="pipe" aria-label="Pipeline: image, frozen encoder, latent z, frozen linear projection, h0, frozen decoder blocks, image">
@@ -197,7 +197,7 @@
       <div class="arrow"></div>
       <div class="node tap" data-tap="h0"><span><i>h</i><sub>0</sub></span></div>
       <div class="arrow"></div>
-      <div class="node frozen">Decoder blocks</div>
+      <div class="node frozen"><span>Decoder<span class="wide">&nbsp;blocks</span></span></div>
       <div class="arrow io"></div>
       <div class="node io"><img src="assets/macaw_fuselift.jpg" alt="" width="52" height="52"></div>
       <div class="dit-badge" aria-hidden="true">DiT</div>

@@ -412,7 +412,7 @@
     };
     const text = {
       z: 'In encoder space, every direction gets the same noise and the same weight.',
-      h0: 'One linear layer in, the directions the decoder reads are stretched above the noise.',
+      h0: 'One linear layer in, the directions the decoder reads rise above the noise.',
     };
     segmented(fig, 'mode', m => { mode = m; P.set({ k: m === 'h0' ? 1 : 0 }, 1100); placeBadge(); setStatus(fig, text[m]); }, 5200);
     new ResizeObserver(placeBadge).observe(pipe);
@@ -422,12 +422,14 @@
     requestAnimationFrame(() => requestAnimationFrame(() => { placeBadge(); badge.classList.add('ready'); }));
 
     const rot = (x, y) => [x * Math.cos(TILT) - y * Math.sin(TILT), x * Math.sin(TILT) + y * Math.cos(TILT)];
-    mountCanvas($('canvas', fig), w => (w < 640 ? 3 * 232 : 270), (ctx, w, h, time) => {
+    // wide: three panels in a row. Phones: noise and effort side by side, error below, so the figure fits one screen.
+    const TOP = 150, BOTTOM = 172;
+    mountCanvas($('canvas', fig), w => (w < 640 ? TOP + BOTTOM : 270), (ctx, w, h, time) => {
       const k = P.get().k, wide = w >= 640;
-      const pw = wide ? w / 3 : w, ph = wide ? h : h / 3;
       const titles = ['Add noise', 'DiT effort', 'DiT error'];
       for (let i = 0; i < 3; i++) {
-        const px = wide ? i * pw : 0, py = wide ? 0 : i * ph, cx = px + pw / 2, cy = py + 34 + (ph - 34) / 2;
+        const pw = wide ? w / 3 : i < 2 ? w / 2 : w, ph = wide ? h : i < 2 ? TOP : BOTTOM;
+        const px = wide ? i * pw : i === 1 ? w / 2 : 0, py = wide || i < 2 ? 0 : TOP, cx = px + pw / 2, cy = py + 34 + (ph - 34) / 2;
         ctx.font = `600 19px ${SANS}`; ctx.fillStyle = T.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
         ctx.fillText(titles[i], cx, py + 4);
 
@@ -447,7 +449,7 @@
           arrow(ctx, cx, cy, cx + vx * lv, cy + vy * lv, T.purple, 3.6);
           cleanLatent(ctx, cx, cy);
         } else if (i === 1) {
-          const Hm = (ph - 34) * 0.62, base = cy + Hm / 2 - 6, bw = 50, gap = 26;
+          const Hm = (ph - 34) * 0.62, base = cy + Hm / 2 - 6, bw = Math.min(50, pw * 0.27), gap = Math.min(26, pw * 0.13);
           const hv = lerp(0.3, 1, k) * Hm, hu = lerp(0.3, 0.085, k) * Hm;
           ctx.fillStyle = T.purple; ctx.beginPath(); ctx.roundRect(cx - gap / 2 - bw, base - hv, bw, hv, [4, 4, 0, 0]); ctx.fill();
           ctx.fillStyle = T.teal; ctx.beginPath(); ctx.roundRect(cx + gap / 2, base - hu, bw, hu, [4, 4, 0, 0]); ctx.fill();
