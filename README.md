@@ -2,25 +2,16 @@
 
 # Rethinking the Reconstruction–Generation Gap in Representation Autoencoders
 
-**FuseLift**: take *information* from the encoder, and *geometry* from the decoder.
 
 <p>
-  <a href="https://arxiv.org/abs/2609.31620"><img src="https://img.shields.io/badge/arXiv-2609.31620-b31b1b?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"></a>
-  <a href="https://hongyang-du.github.io/FuseLift/"><img src="https://img.shields.io/badge/Project_page-FuseLift-1c6fb8?style=for-the-badge" alt="Project page"></a>
-  <a href="https://huggingface.co/Hongyang-Du/FuseLift"><img src="https://img.shields.io/badge/Hugging_Face-Models_and_samples-ffd21e?style=for-the-badge&logo=huggingface&logoColor=black" alt="Hugging Face models and samples"></a>
-  <a href="https://github.com/Hongyang-Du/FuseReg"><img src="https://img.shields.io/badge/Companion-FuseReg-e08a1e?style=for-the-badge&logo=github&logoColor=white" alt="FuseReg repository"></a>
+  <a href="https://arxiv.org/abs/2609.31620"><img src="docs/assets/button-arxiv.svg" width="94" height="32" alt="arXiv"></a>&nbsp;&nbsp;
+  <a href="https://hongyang-du.github.io/FuseLift/"><img src="docs/assets/button-project-page.svg" width="140" height="32" alt="Project page"></a>&nbsp;&nbsp;
+  <a href="https://huggingface.co/Hongyang-Du/FuseLift"><img src="docs/assets/button-huggingface.svg" width="148" height="32" alt="Hugging Face"></a>
+
 </p>
 
-Hongyang Du<sup>1,2,\*</sup>, Yunfei Xie<sup>3,\*</sup>, Junjie Ye<sup>1,\*</sup>, Jiawei Yang<sup>1</sup>, Xiaoyan Cong<sup>2</sup>, Haodong Zhang<sup>2</sup>,
-Yongchao Huang<sup>4</sup>, Haiyu Wu<sup>5</sup>, Zongxia Li<sup>6</sup>, Shihang Gui<sup>2</sup>, Dawei Liu<sup>7</sup>, Runhao Li<sup>1</sup>, Jingcheng Ni<sup>2</sup>,
-Chen Wei<sup>3,†</sup>, Randall Balestriero<sup>2,†</sup>, Yue Wang<sup>1,†</sup>
 
-<sup>1</sup>USC PSI Lab · <sup>2</sup>Brown University · <sup>3</sup>Rice University · <sup>4</sup>University of Aberdeen · <sup>5</sup>University of Notre Dame<br>
-<sup>6</sup>University of Maryland, College Park · <sup>7</sup>University of Pennsylvania
-
-<sup>\*</sup>Equal contribution · <sup>†</sup>Equal advising
-
-**0.984 gFID** on class-conditional ImageNet-256 · DiT-XL · 80 epochs · 50 sampling steps
+**0.984 gFID · 2.14 FDr6** on class-conditional ImageNet-256 · DiT-XL · 80 epochs · 50 sampling steps
 
 </div>
 
