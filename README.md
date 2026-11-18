@@ -290,17 +290,19 @@ same h0 target.
 ## Citation
 
 ```bibtex
-@article{du2026rethinking,
-  title  = {Rethinking the Reconstruction-Generation Gap in Representation Autoencoders},
-  author = {Du, Hongyang and Xie, Yunfei and Ye, Junjie and Yang, Jiawei and Cong, Xiaoyan and
-            Zhang, Haodong and Huang, Yongchao and Wu, Haiyu and Li, Zongxia and Gui, Shihang and
-            Liu, Dawei and Li, Runhao and Ni, Jingcheng and Wei, Chen and Balestriero, Randall and
-            Wang, Yue},
-  year   = {2026},
-  eprint = {2609.31620},
-  archivePrefix = {arXiv},
-  primaryClass = {cs.CV},
-  url    = {https://arxiv.org/abs/2609.31620}
+@misc{du2026rethinkingreconstructiongenerationgaprepresentation,
+  title={Rethinking the Reconstruction-Generation Gap in
+         Representation Autoencoders},
+  author={Hongyang Du and Yunfei Xie and Junjie Ye and Jiawei Yang and
+          Xiaoyan Cong and Haodong Zhang and Yongchao Huang and
+          Haiyu Wu and Zongxia Li and Shihang Gui and Dawei Liu and
+          Runhao Li and Jingcheng Ni and Chen Wei and
+          Randall Balestriero and Yue Wang},
+  year={2026},
+  eprint={2609.31620},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2609.31620},
 }
 ```
 
